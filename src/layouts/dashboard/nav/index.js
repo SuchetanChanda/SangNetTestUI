@@ -1,9 +1,22 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { React, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 // @mui
 import { styled, alpha } from '@mui/material/styles';
-import { Box, Link, Button, Drawer, Typography, Avatar, Stack } from '@mui/material';
+import {
+  Box,
+  Link,
+  Button,
+  Drawer,
+  Typography,
+  Avatar,
+  Stack,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Modal,
+} from '@mui/material';
 // mock
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -63,6 +76,25 @@ export default function Nav({ openNav, onCloseNav }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+  const [age, setAge] = useState('');
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: 'background.paper',
+    border: '2px solid #000',
+    boxShadow: 24,
+    pt: 2,
+    px: 4,
+    pb: 3,
+  };
+
+  const handleChange = (event) => {
+    setDonorBloodGroupData(event.target.value);
+  };
+
   const handleDonorRequest = async () => {
     try {
       // if (donorRequestData.blood_group === '') {
@@ -70,7 +102,7 @@ export default function Nav({ openNav, onCloseNav }) {
       // } else {
       const { data } = await axios.post(
         `${url}/donor/apply/`,
-        { user_id: userId, blood_group: donorRequestData.blood_group },
+        { user_id: userId, blood_group: donorBloodGroupData },
         {
           headers: { ' Content-Type': 'application/json' },
         }
@@ -123,28 +155,86 @@ export default function Nav({ openNav, onCloseNav }) {
       <Box sx={{ flexGrow: 1 }} />
 
       <Box sx={{ px: 2.5, pb: 3, mt: 10 }}>
-        {!user?.is_donor && (
-          <Stack alignItems="center" spacing={3} sx={{ pt: 5, borderRadius: 2, position: 'relative' }}>
-            <Box
-              component="img"
-              src="/assets/illustrations/illustration_avatar.png"
-              sx={{ width: 100, position: 'absolute', top: -50 }}
-            />
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography gutterBottom variant="h6">
-                Want to Be a Donor?
-              </Typography>
+        {!user?.donor_application_status === 'VR' ||
+          (!user?.donor_application_status === 'AP' && (
+            <Stack alignItems="center" spacing={3} sx={{ pt: 5, borderRadius: 2, position: 'relative' }}>
+              <Box
+                component="img"
+                src="/assets/illustrations/illustration_avatar.png"
+                sx={{ width: 100, position: 'absolute', top: -50 }}
+              />
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography gutterBottom variant="h6">
+                  Want to Be a Donor?
+                </Typography>
 
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                You are just one click away!
-              </Typography>
-            </Box>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  You are just one click away!
+                </Typography>
+              </Box>
+              {/* <FormControl fullWidth>
+              <InputLabel id="demo-simple-select-label">Group</InputLabel>
+              <Select
+                labelId="demo-simple-select-label"
+                id="demo-simple-select"
+                value={age}
+                label="Group"
+                onChange={handleChange}
+              >
+                <MenuItem value={10}>A+</MenuItem>
+                <MenuItem value={20}>A-</MenuItem>
+                <MenuItem value={30}>B+</MenuItem>
+                <MenuItem value={30}>B-</MenuItem>
+                <MenuItem value={30}>AB+</MenuItem>
+                <MenuItem value={30}>O+</MenuItem>
+                <MenuItem value={30}>O-</MenuItem>
+              </Select>
+            </FormControl> */}
 
-            <Button variant="contained" onClick={handleDonorRequest}>
-              Apply to Be a Donor!
-            </Button>
-          </Stack>
-        )}
+              <Button variant="contained" onClick={handleOpen}>
+                Apply to Be a Donor!
+              </Button>
+              <Modal
+                open={open}
+                onClose={handleClose}
+                aria-labelledby="modal-modal-title"
+                aria-describedby="modal-modal-description"
+              >
+                <Box sx={style}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <Typography id="modal-modal-title" variant="h6" component="h2">
+                      Apply for Donor
+                    </Typography>
+                    <FormControl fullWidth>
+                      <InputLabel id="demo-simple-select-label">Group</InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={donorBloodGroupData}
+                        label="Group"
+                        onChange={handleChange}
+                      >
+                        <MenuItem value={10}>A+</MenuItem>
+                        <MenuItem value={20}>A-</MenuItem>
+                        <MenuItem value={30}>B+</MenuItem>
+                        <MenuItem value={40}>B-</MenuItem>
+                        <MenuItem value={50}>AB+</MenuItem>
+                        <MenuItem value={60}>O+</MenuItem>
+                        <MenuItem value={70}>O-</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="contained"
+                      sx={{ justifyContent: 'center', alignItems: 'center', padding: '14px' }}
+                      onClick={handleDonorRequest}
+                    >
+                      Apply
+                    </Button>
+                  </Box>
+                </Box>
+              </Modal>
+            </Stack>
+          ))}
       </Box>
     </Scrollbar>
   );
