@@ -1,9 +1,13 @@
 import { useState } from 'react';
 // @mui
 import { alpha } from '@mui/material/styles';
+import axios from 'axios';
 import { Box, Divider, Typography, Stack, MenuItem, Avatar, IconButton, Popover } from '@mui/material';
 // mocks_
+import { useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../../../hooks/useAuthContext';
 import account from '../../../_mock/account';
+// import {toast} from '../react-toastify'
 
 // ----------------------------------------------------------------------
 
@@ -26,6 +30,7 @@ const MENU_OPTIONS = [
 
 export default function AccountPopover() {
   const [open, setOpen] = useState(null);
+  const navigate = useNavigate();
 
   const handleOpen = (event) => {
     setOpen(event.currentTarget);
@@ -33,6 +38,43 @@ export default function AccountPopover() {
 
   const handleClose = () => {
     setOpen(null);
+  };
+
+  const { user, dispatch } = useAuthContext();
+  const access = localStorage.getItem('access');
+  const refresh = localStorage.getItem('refresh');
+  const url = 'http://localhost:8000';
+
+  const signOut = async () => {
+    try {
+      const { data } = await axios.post(
+        `${url}/accounts/logout/`,
+        {
+          refresh_token: refresh,
+        },
+        {
+          headers: {
+            'Content-type': 'application/json',
+            Authorization: `Bearer ${access}`,
+          },
+        }
+      );
+      localStorage.clear();
+      // toast.success("Signed out successfully");
+      console.log('signed out');
+
+      dispatch({ type: 'LOGOUT' });
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.log(error);
+      if (error.response.status === 400) {
+        // toast.error(error.response.data.message);
+        console.log(error.response.data.message);
+      } else {
+        // toast.error("Something went wrong");
+        console.log('Something went wrong');
+      }
+    }
   };
 
   return (
@@ -78,10 +120,10 @@ export default function AccountPopover() {
       >
         <Box sx={{ my: 1.5, px: 2.5 }}>
           <Typography variant="subtitle2" noWrap>
-            {account.displayName}
+            {user?.first_name} {user?.last_name}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-            {account.email}
+            {user?.email}
           </Typography>
         </Box>
 
@@ -97,7 +139,7 @@ export default function AccountPopover() {
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
-        <MenuItem onClick={handleClose} sx={{ m: 1 }}>
+        <MenuItem onClick={signOut} sx={{ m: 1 }}>
           Logout
         </MenuItem>
       </Popover>
