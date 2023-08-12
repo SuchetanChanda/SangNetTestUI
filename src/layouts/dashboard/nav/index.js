@@ -1,10 +1,12 @@
 import PropTypes from 'prop-types';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 // @mui
 import { styled, alpha } from '@mui/material/styles';
 import { Box, Link, Button, Drawer, Typography, Avatar, Stack } from '@mui/material';
 // mock
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import account from '../../../_mock/account';
 // hooks
 import useResponsive from '../../../hooks/useResponsive';
@@ -14,6 +16,7 @@ import Scrollbar from '../../../components/scrollbar';
 import NavSection from '../../../components/nav-section';
 //
 import navConfig from './config';
+import { useAuthContext } from '../../../hooks/useAuthContext';
 
 // ----------------------------------------------------------------------
 
@@ -35,9 +38,24 @@ Nav.propTypes = {
 };
 
 export default function Nav({ openNav, onCloseNav }) {
+  const [open, setOpen] = useState(false);
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
   const { pathname } = useLocation();
+  const { user, dispatch } = useAuthContext();
+  const [donorData, setDonorData] = useState([]);
+  const [donorBloodGroupData, setDonorBloodGroupData] = useState([]);
+  const [lastDonated, setLastDonated] = useState([]);
+  const [donorRequestData, setDonorRequestData] = useState({
+    blood_group: '',
+    last_donated: '',
+  });
 
   const isDesktop = useResponsive('up', 'lg');
+
+  const url = `http://localhost:8000`;
+  const token = localStorage.getItem('access');
+  const userId = localStorage.getItem('user_id');
 
   useEffect(() => {
     if (openNav) {
@@ -45,6 +63,31 @@ export default function Nav({ openNav, onCloseNav }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+  const handleDonorRequest = async () => {
+    try {
+      // if (donorRequestData.blood_group === '') {
+      //   toast.warn('Blood Group field cannot be empty ');
+      // } else {
+      const { data } = await axios.post(
+        `${url}/donor/apply/`,
+        { user_id: userId, blood_group: donorRequestData.blood_group },
+        {
+          headers: { ' Content-Type': 'application/json' },
+        }
+      );
+      dispatch({
+        type: 'UPDATE',
+        payload: 'AP',
+      });
+      setDonorData(data);
+      handleClose();
+      // console.log(data);
+      toast.success('Request submitted successfully');
+      // }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const renderContent = (
     <Scrollbar
@@ -64,7 +107,7 @@ export default function Nav({ openNav, onCloseNav }) {
 
             <Box sx={{ ml: 2 }}>
               <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
-                {account.displayName}
+                {`${user?.first_name} ${user?.last_name}`}
               </Typography>
 
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -80,27 +123,28 @@ export default function Nav({ openNav, onCloseNav }) {
       <Box sx={{ flexGrow: 1 }} />
 
       <Box sx={{ px: 2.5, pb: 3, mt: 10 }}>
-        <Stack alignItems="center" spacing={3} sx={{ pt: 5, borderRadius: 2, position: 'relative' }}>
-          <Box
-            component="img"
-            src="/assets/illustrations/illustration_avatar.png"
-            sx={{ width: 100, position: 'absolute', top: -50 }}
-          />
+        {!user?.is_donor && (
+          <Stack alignItems="center" spacing={3} sx={{ pt: 5, borderRadius: 2, position: 'relative' }}>
+            <Box
+              component="img"
+              src="/assets/illustrations/illustration_avatar.png"
+              sx={{ width: 100, position: 'absolute', top: -50 }}
+            />
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography gutterBottom variant="h6">
+                Want to Be a Donor?
+              </Typography>
 
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography gutterBottom variant="h6">
-              Want to Be a Donor?
-            </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                You are just one click away!
+              </Typography>
+            </Box>
 
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              You are just one click away!
-            </Typography>
-          </Box>
-
-          <Button href="https://material-ui.com/store/items/minimal-dashboard/" target="_blank" variant="contained">
-            Apply to Be a Donor!
-          </Button>
-        </Stack>
+            <Button variant="contained" onClick={handleDonorRequest}>
+              Apply to Be a Donor!
+            </Button>
+          </Stack>
+        )}
       </Box>
     </Scrollbar>
   );
