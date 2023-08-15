@@ -1,7 +1,10 @@
 import { Helmet } from 'react-helmet-async';
 import { filter } from 'lodash';
 import { sentenceCase } from 'change-case';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import dayjs from 'dayjs';
 // @mui
 import {
   Card,
@@ -28,18 +31,15 @@ import Iconify from '../components/iconify';
 import Scrollbar from '../components/scrollbar';
 // sections
 import { UserListHead, UserListToolbar } from '../sections/@dashboard/user';
-// mock
-import USERLIST from '../_mock/user';
-
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
   { id: 'name', label: 'Name', alignRight: false },
-  { id: 'company', label: 'Company', alignRight: false },
-  { id: 'role', label: 'Role', alignRight: false },
-  { id: 'isVerified', label: 'Verified', alignRight: false },
+  { id: 'bloodGroup', label: 'Blood Group', alignRight: false },
+  { id: 'units', label: 'Units', alignRight: false },
+  { id: 'dateOfDonation', label: 'Date of Donation', alignRight: false },
   { id: 'status', label: 'Status', alignRight: false },
-  { id: '' },
+  { id: 'action', label: 'Action', alignRight: false },
 ];
 
 // ----------------------------------------------------------------------
@@ -74,6 +74,8 @@ function applySortFilter(array, comparator, query) {
 }
 
 export default function UserPage() {
+  const [list, setList] = useState([]);
+
   const [open, setOpen] = useState(null);
 
   const [page, setPage] = useState(0);
@@ -104,7 +106,7 @@ export default function UserPage() {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = USERLIST.map((n) => n.name);
+      const newSelecteds = list.map((n) => n.requested_by.first_name);
       setSelected(newSelecteds);
       return;
     }
@@ -140,31 +142,60 @@ export default function UserPage() {
     setFilterName(event.target.value);
   };
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - USERLIST.length) : 0;
+  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - 5) : 0;
 
-  const filteredUsers = applySortFilter(USERLIST, getComparator(order, orderBy), filterName);
+  const filteredUsers = applySortFilter(list, getComparator(order, orderBy), filterName);
 
   const isNotFound = !filteredUsers.length && !!filterName;
+  const url = 'http://localhost:8000';
+
+  const fetchRecieverHistory = async (userId) => {
+    try {
+      const { data } = await axios.post(
+        `${url}/donation/receiver-history/`,
+        {
+          requested_by: userId,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      setList(data);
+      // setNewData(data);
+      console.log('Data', data);
+      if (!data || data.length === 0) {
+        toast.warn('No history found at the moment!');
+      }
+    } catch (error) {
+      if (error.response.status === 400) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Something went wrong!');
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchRecieverHistory(2);
+  }, []);
 
   return (
     <>
       <Helmet>
-        <title> User | Minimal UI </title>
+        <title> Donation Requests | Receivers </title>
       </Helmet>
 
       <Container>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
           <Typography variant="h4" gutterBottom>
-            User
+            Donation Requests
           </Typography>
           <Button variant="contained" startIcon={<Iconify icon="eva:plus-fill" />}>
-            New User
+            New Donation Request
           </Button>
         </Stack>
 
         <Card>
-          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} />
-
           <Scrollbar>
             <TableContainer sx={{ minWidth: 800 }}>
               <Table>
@@ -172,54 +203,52 @@ export default function UserPage() {
                   order={order}
                   orderBy={orderBy}
                   headLabel={TABLE_HEAD}
-                  rowCount={USERLIST.length}
+                  rowCount={list.length}
                   numSelected={selected.length}
                   onRequestSort={handleRequestSort}
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
-                    const { id, name, role, status, company, avatarUrl, isVerified } = row;
-                    const selectedUser = selected.indexOf(name) !== -1;
-
-                    return (
-                      <TableRow hover key={id} tabIndex={-1} role="checkbox" selected={selectedUser}>
-                        <TableCell padding="checkbox">
-                          <Checkbox checked={selectedUser} onChange={(event) => handleClick(event, name)} />
-                        </TableCell>
-
-                        <TableCell component="th" scope="row" padding="none">
-                          <Stack direction="row" alignItems="center" spacing={2}>
-                            <Avatar alt={name} src={avatarUrl} />
-                            <Typography variant="subtitle2" noWrap>
-                              {name}
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-
-                        <TableCell align="left">{company}</TableCell>
-
-                        <TableCell align="left">{role}</TableCell>
-
-                        <TableCell align="left">{isVerified ? 'Yes' : 'No'}</TableCell>
-
-                        <TableCell align="left">
-                          <Label color={(status === 'banned' && 'error') || 'success'}>{sentenceCase(status)}</Label>
-                        </TableCell>
-
-                        <TableCell align="right">
-                          <IconButton size="large" color="inherit" onClick={handleOpenMenu}>
-                            <Iconify icon={'eva:more-vertical-fill'} />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {emptyRows > 0 && (
-                    <TableRow style={{ height: 53 * emptyRows }}>
-                      <TableCell colSpan={6} />
-                    </TableRow>
-                  )}
+                  {list && list.length !== 0
+                    ? list.map((data) => (
+                        <TableRow
+                          key={data.request_id}
+                          sx={{
+                            '&:last-child td, &:last-child th': {
+                              border: 0,
+                            },
+                          }}
+                          className="coloredBg"
+                        >
+                          <TableCell component="th" scope="row">
+                            {data.requested_by.first_name} {data.requested_by.last_name}
+                          </TableCell>
+                          <TableCell align="left">{data.blood_group}</TableCell>
+                          <TableCell align="left">{data.units_required}</TableCell>
+                          <TableCell align="left">
+                            {dayjs(data.required_on).format("DD/MM/YYYY")}
+                          </TableCell>
+                          <TableCell align="left">{sentenceCase(data.current_status)}</TableCell>
+                          <TableCell>
+                            {data.current_status === 'active' &&
+                            data.donor_approved === true &&
+                            data.reciever_approved === false ? (
+                              <Button
+                                // onClick={() => {
+                                //   fulfillRequest(data.request_id);
+                                // }}
+                                variant="contained"
+                                color="success"
+                              >
+                                Complete
+                              </Button>
+                            ) : (
+                              '--'
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : ''}
                 </TableBody>
 
                 {isNotFound && (
@@ -252,7 +281,7 @@ export default function UserPage() {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={USERLIST.length}
+            count={list.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
